@@ -1,6 +1,6 @@
 (**************************************************************************)
 (*                                                                        *)
-(* Module:  Unit 'Data.CLoud.MinIO' Copyright (c) 2023                    *)
+(* Module:  Unit 'Data.Cloud.MinIO' Copyright (c) 2023                    *)
 (*                                                                        *)
 (*                                  Lucas Moura Belo - lmbelo             *)
 (*                                  lucas.belo@live.com                   *)
@@ -36,11 +36,8 @@ uses
   System.SysUtils,
   System.Classes,
   System.Generics.Collections,
-  Winapi.ActiveX,
-  Winapi.Windows,
-  Winapi.msxml,
-  Data.Cloud.AmazonAPI,
-  Data.Cloud.CloudAPI;
+  Data.Cloud.CloudAPI,
+  Data.Cloud.AmazonAPI;
 
 type
   TMinIOConnectionInfo = class(TAmazonConnectionInfo)
@@ -51,22 +48,23 @@ type
 
   TMinIOStorageService = class(TAmazonStorageService)
   private
-    const nTAMANHO_PEDACO_PADRAO = 10485760; //5242880 - 5MB / 10485760 - 10MB
+    const DEFAULT_DATA_CHUNK_SIZE = 10485760; //5242880 - 5MB / 10485760 - 10MB
   private
-    procedure ValidarArquivo(const psArquivo: string); inline;
-    function FormatarReponseInfo(const poRespInfo: TCloudResponseInfo): string;
-    procedure TestarEnvioMultipart(const pbSucesso: boolean; const poRespInfo: TCloudResponseInfo);
+    procedure ValidateFile(const AFileName: string); inline;
+    function FormatResponseInfo(const AResponseInfo: TCloudResponseInfo): string;
+    procedure TestMultipartUpload(const ASuccess: boolean; const AResponseInfo: TCloudResponseInfo);
   protected
     function PrepareRequest(const HTTPVerb: string; Headers, QueryParameters: TStringList;
       const QueryPrefix: string; var URL: string; var Content: TStream): TCloudHTTP; overload; override;
   public
-    procedure EnviarArquivoPequeno(const psBucketName, psArquivo: string; psNomeArquivo: string = '');
-    procedure EnviarArquivoGrande(const psBucketName, psArquivo: string; psNomeArquivo: string = ''; pnTamanhoPedaco: integer = 0);
-    procedure EnviarArquivo(const psBucketName, psArquivo: string; psNomeArquivo: string = '');
+    procedure UploadSmallFile(const ABucketName, AFileName: string; ARemoteFileName: string = '');
+    procedure UploadLargeFile(const ABucketName, AFileName: string; ARemoteFileName: string = '';
+      ADataChunkSize: integer = 0);
+    procedure UploadFile(const ABucketName, AFileName: string; ARemoteFileName: string = '');
   end;
 
   EMinIO = class(Exception);
-  EArquivoInvalido = class(EMinIO);
+  EInvalidFile = class(EMinIO);
   ERegularUpload = class(EMinIO);
   EMultipartUpload = class(EMinIO);
 
@@ -99,113 +97,113 @@ begin
   Result := inherited;
 end;
 
-procedure TMinIOStorageService.ValidarArquivo(const psArquivo: string);
+procedure TMinIOStorageService.ValidateFile(const AFileName: string);
 begin
-  if not TFile.Exists(psArquivo) then
-    raise EArquivoInvalido.CreateFmt('O arquivo %s é inválido.', [psArquivo]);
+  if not TFile.Exists(AFileName) then
+    raise EInvalidFile.CreateFmt('Invalid file %s.', [AFileName]);
 end;
 
-function TMinIOStorageService.FormatarReponseInfo(const poRespInfo: TCloudResponseInfo): string;
+function TMinIOStorageService.FormatResponseInfo(const AResponseInfo: TCloudResponseInfo): string;
 begin
-  Result := poRespInfo.StatusCode.ToString + ' - ' + poRespInfo.StatusMessage;
+  Result := AResponseInfo.StatusCode.ToString + ' - ' + AResponseInfo.StatusMessage;
 end;
 
-procedure TMinIOStorageService.TestarEnvioMultipart(const pbSucesso: boolean;
-  const poRespInfo: TCloudResponseInfo);
+procedure TMinIOStorageService.TestMultipartUpload(const ASuccess: boolean;
+  const AResponseInfo: TCloudResponseInfo);
 begin
-  if not pbSucesso then
-    raise EMultipartUpload.CreateFmt('Ocorreu um erro ao enviar o arquivo %s', [
-      FormatarReponseInfo(poRespInfo)]);
+  if not ASuccess then
+    raise EMultipartUpload.CreateFmt('An error occurred in the upload. %s', [
+      FormatResponseInfo(AResponseInfo)]);
 end;
 
-procedure TMinIOStorageService.EnviarArquivoPequeno(const psBucketName, psArquivo: string;
-  psNomeArquivo: string);
+procedure TMinIOStorageService.UploadSmallFile(const ABucketName, AFileName: string;
+  ARemoteFileName: string);
 var
-  oResponseInfo: TCloudResponseInfo;
+  LResponseInfo: TCloudResponseInfo;
 begin
-  ValidarArquivo(psArquivo);
+  ValidateFile(AFileName);
 
-  if psNomeArquivo.IsEmpty then
-    psNomeArquivo := TPath.GetFileName(psArquivo);
+  if ARemoteFileName.IsEmpty then
+    ARemoteFileName := TPath.GetFileName(AFileName);
 
-  oResponseInfo := TCloudResponseInfo.Create;
+  LResponseInfo := TCloudResponseInfo.Create;
   try
-    if not Self.UploadObject(psBucketName, psNomeArquivo, TFile.ReadAllBytes(psArquivo), false,
-      nil, nil, amzbaPrivate, oResponseInfo) then
-        raise ERegularUpload.CreateFmt('Ocorreu um erro ao enviar o arquivo. %s', [
-          FormatarReponseInfo(oResponseInfo)]);
+    if not Self.UploadObject(ABucketName, ARemoteFileName, TFile.ReadAllBytes(AFileName), false,
+      nil, nil, amzbaPrivate, LResponseInfo) then
+        raise ERegularUpload.CreateFmt('An error occurred in the upload. %s', [
+          FormatResponseInfo(LResponseInfo)]);
   finally
-    oResponseInfo.Free;
+    LResponseInfo.Free;
   end;
 end;
 
-procedure TMinIOStorageService.EnviarArquivoGrande(const psBucketName, psArquivo: string;
-  psNomeArquivo: string; pnTamanhoPedaco: integer);
+procedure TMinIOStorageService.UploadLargeFile(const ABucketName, AFileName: string;
+  ARemoteFileName: string; ADataChunkSize: integer);
 var
-  oResponseInfo: TCloudResponseInfo;
+  LResponseInfo: TCloudResponseInfo;
   LUploadId: string;
   LChunk: TArray<byte>;
   LPart: TAmazonMultipartPart;
   LParts: TList<TAmazonMultipartPart>;
   LBinaryReader: TBinaryReader;
 begin
-  ValidarArquivo(psArquivo);
+  ValidateFile(AFileName);
 
-  if psNomeArquivo.IsEmpty then
-    psNomeArquivo := TPath.GetFileName(psArquivo);
+  if ARemoteFileName.IsEmpty then
+    ARemoteFileName := TPath.GetFileName(AFileName);
 
-  if (pnTamanhoPedaco = 0) then
-    pnTamanhoPedaco := nTAMANHO_PEDACO_PADRAO;
+  if (ADataChunkSize = 0) then
+    ADataChunkSize := DEFAULT_DATA_CHUNK_SIZE;
 
   LParts := TList<TAmazonMultipartPart>.Create;
   try
-    oResponseInfo := TCloudResponseInfo.Create;
+    LResponseInfo := TCloudResponseInfo.Create;
     try
-      LUploadId := InitiateMultipartUpload(psBucketName, psNomeArquivo, nil, nil, amzbaPrivate, oResponseInfo);
+      LUploadId := InitiateMultipartUpload(ABucketName, ARemoteFileName, nil, nil, amzbaPrivate, LResponseInfo);
       try
-        LBinaryReader := TBinaryReader.Create(psArquivo);
+        LBinaryReader := TBinaryReader.Create(AFileName);
         try
-          LChunk := LBinaryReader.ReadBytes(pnTamanhoPedaco);
+          LChunk := LBinaryReader.ReadBytes(ADataChunkSize);
           while Assigned(LChunk) do
           begin
-            TestarEnvioMultipart(
+            TestMultipartUpload(
               UploadPart(
-                psBucketName,
-                psNomeArquivo,
+                ABucketName,
+                ARemoteFileName,
                 LUploadId,
                 LParts.Count,
                 LChunk,
                 LPart),
-              oResponseInfo);
+              LResponseInfo);
 
             LParts.Add(LPart);
-            LChunk := LBinaryReader.ReadBytes(pnTamanhoPedaco);
+            LChunk := LBinaryReader.ReadBytes(ADataChunkSize);
           end;
         finally
           LBinaryReader.Free;
         end;
       finally
-        TestarEnvioMultipart(
-          CompleteMultipartUpload(psBucketName, psNomeArquivo, LUploadId, LParts, oResponseInfo),
-          oResponseInfo);
+        TestMultipartUpload(
+          CompleteMultipartUpload(ABucketName, ARemoteFileName, LUploadId, LParts, LResponseInfo),
+          LResponseInfo);
       end;
     finally
-      oResponseInfo.Free;
+      LResponseInfo.Free;
     end;
   finally
    LParts.Free;
   end;
 end;
 
-procedure TMinIOStorageService.EnviarArquivo(const psBucketName, psArquivo: string;
-  psNomeArquivo: string);
+procedure TMinIOStorageService.UploadFile(const ABucketName, AFileName: string;
+  ARemoteFileName: string);
 begin
-  with TFile.OpenRead(psArquivo) do
+  with TFile.OpenRead(AFileName) do
   try
-    if (Size > nTAMANHO_PEDACO_PADRAO) then
-      EnviarArquivoGrande(psBucketName, psArquivo, psNomeArquivo)
+    if (Size > DEFAULT_DATA_CHUNK_SIZE) then
+      UploadLargeFile(ABucketName, AFileName, ARemoteFileName)
     else
-      EnviarArquivoPequeno(psBucketName, psArquivo, psNomeArquivo);
+      UploadSmallFile(ABucketName, AFileName, ARemoteFileName);
   finally
     Free;
   end;
