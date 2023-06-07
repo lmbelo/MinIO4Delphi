@@ -1,4 +1,4 @@
-# MinIO4Delphi
+# MinIO4Delphi - Based on Delphi Amazon Cloud API
 
 ## High Performance Object Storage for AI
 
