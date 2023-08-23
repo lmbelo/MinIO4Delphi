@@ -13,29 +13,29 @@ Create the connection info in the same manner as you create the [Amazon connecti
 
 ```
 var
-  oConnInfo: TMinIOConnectionInfo;
+  LConnInfo: TMinIOConnectionInfo;
 ...
-  oConnInfo := TMinIOConnectionInfo.Create(nil);
-  oConnInfo.AccountKey := 'your_private_key';
-  oConnInfo.AccountName := 'your_public_key';
-  oConnInfo.StorageEndPoint := 'your_endpoint';
-  oConnInfo.UseDefaultEndpoints := false;
+  LConnInfo := TMinIOConnectionInfo.Create(nil);
+  LConnInfo.AccountKey := 'your_private_key';
+  LConnInfo.AccountName := 'your_public_key';
+  LConnInfo.StorageEndPoint := 'your_endpoint';
+  LConnInfo.UseDefaultEndpoints := false;
 ```
 
 Create the storage service in the same manner as you create the [Amazon storage service](https://docwiki.embarcadero.com/Libraries/Alexandria/en/Data.Cloud.AmazonAPI.TAmazonStorageService):
 
 ```
 var
-  oService: TMinIOStorageService;
+  LService: TMinIOStorageService;
 ...
-  oService := TMinIOStorageService.Create(oConnInfo);
+  LService := TMinIOStorageService.Create(oConnInfo);
 ```
 
 Use it in the conventional way plus this implementation abstractions:
 
 ```
 ...
-  oService.UploadFile('your_bucket_name', 'local_file_path', 'remote_file_name');
-  oService.DeleteObject('your_bucket_name', 'remote_file_name');
+  LService.UploadFile('your_bucket_name', 'local_file_path', 'remote_file_name');
+  LService.DeleteObject('your_bucket_name', 'remote_file_name');
 ...
 ```
