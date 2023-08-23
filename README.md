@@ -28,7 +28,7 @@ Create the storage service in the same manner as you create the [Amazon storage 
 var
   LService: TMinIOStorageService;
 ...
-  LService := TMinIOStorageService.Create(oConnInfo);
+  LService := TMinIOStorageService.Create(LConnInfo);
 ```
 
 Use it in the conventional way plus this implementation abstractions:
