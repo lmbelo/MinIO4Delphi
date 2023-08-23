@@ -9,7 +9,7 @@ https://min.io/
 
 ### Usage
 
-Create the connection info in the same manner as you create the [Amazon connection info](https://docwiki.embarcadero.com/Libraries/Alexandria/en/Data.Cloud.AmazonAPI.TAmazonConnectionInfo):
+Create the MinIO connection info in the same manner as you create the [Amazon connection info](https://docwiki.embarcadero.com/Libraries/Alexandria/en/Data.Cloud.AmazonAPI.TAmazonConnectionInfo):
 
 ```
 var
@@ -22,7 +22,7 @@ var
   LConnInfo.UseDefaultEndpoints := false;
 ```
 
-Create the storage service in the same manner as you create the [Amazon storage service](https://docwiki.embarcadero.com/Libraries/Alexandria/en/Data.Cloud.AmazonAPI.TAmazonStorageService):
+Create the MinIO storage service in the same manner as you create the [Amazon storage service](https://docwiki.embarcadero.com/Libraries/Alexandria/en/Data.Cloud.AmazonAPI.TAmazonStorageService):
 
 ```
 var
