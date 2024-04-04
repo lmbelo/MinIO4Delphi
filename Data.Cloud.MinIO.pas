@@ -160,6 +160,7 @@ begin
     LResponseInfo := TCloudResponseInfo.Create;
     try
       LUploadId := InitiateMultipartUpload(ABucketName, ARemoteFileName, nil, nil, amzbaPrivate, LResponseInfo);
+      TestMultipartUpload(not LUploadId.IsEmpty(), LResponseInfo);
       try
         LBinaryReader := TBinaryReader.Create(AFileName);
         try
@@ -171,7 +172,7 @@ begin
                 ABucketName,
                 ARemoteFileName,
                 LUploadId,
-                LParts.Count,
+                Succ(LParts.Count),
                 LChunk,
                 LPart),
               LResponseInfo);
@@ -191,7 +192,7 @@ begin
       LResponseInfo.Free;
     end;
   finally
-   LParts.Free;
+    LParts.Free;
   end;
 end;
 
