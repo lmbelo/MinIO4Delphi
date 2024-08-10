@@ -39,3 +39,7 @@ Use it in the conventional way plus this implementation abstractions:
   LService.DeleteObject('your_bucket_name', 'remote_file_name');
 ...
 ```
+
+# Sample 1
+
+![image](https://github.com/user-attachments/assets/22ce3ca9-8dd3-403f-abf8-c51d4a26be25)
