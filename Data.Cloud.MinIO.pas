@@ -91,8 +91,13 @@ function TMinIOStorageService.PrepareRequest(const HTTPVerb: string; Headers,
   var Content: TStream): TCloudHTTP;
 begin
   URL := TMinIOConnectionInfo(GetConnectionInfo).StorageURL(QueryPrefix.Replace('/', '', []));
+
   if URL.Contains('?') and (not URL.EndsWith('?') and not URL.Contains('=')) then //?uploads
     URL := URL + '=';
+
+  if Assigned(QueryParameters) then
+    URL := BuildQueryParameterString(url, QueryParameters, False, True);
+
   Headers.Values['host'] := GetConnectionInfo.StorageEndpoint;
   Result := inherited;
 end;
